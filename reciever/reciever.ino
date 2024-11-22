@@ -4,19 +4,24 @@
 #include <Servo.h>
 #include <Wire.h>
 #include "extra.h"
-// extern float fh = 0, fp = 0, fr = 0;
-// extern float IMUout[3];
+
+
+int m1, m2, m3, m4;
 
 Servo ESC;     // create servo object to control the ESC
 Servo ESC2;
+Servo ESC3;
+Servo ESC4;
 int redpin = 14; //select the pin for the red LED
 int bluepin =15; // select the pin for the blue LED
 int greenpin =16;// select the pin for the green LED
-
+float IMUval[3];
 
 RF24 radio(7, 8); // CE, CSN
 
 const byte address[6] = "00001";
+
+
 
 void setup() {
   pinMode(2, OUTPUT);
@@ -56,7 +61,10 @@ void setup() {
   ESC.attach(9,1000,2000); // (pin, min pulse width, max pulse width in microseconds) 
   //esc2 bottom two
   ESC2.attach(6,1000,2000); // (pin, min pulse width, max pulse width in microseconds) 
+  ESC3.attach(5, 1000, 2000);
+  ESC4.attach(3, 1000, 2000);
 
+  
   analogWrite(greenpin, 255);
   analogWrite(bluepin, 0);
   analogWrite(redpin, 0);
@@ -68,23 +76,28 @@ void setup() {
   delay(10);
   calibrate();
 }
-
+//p, r, h
 void loop() {
-
+  IMU(IMUval, 3);
   if (radio.available()) {
     Serial.println("Recieving...");
     uint8_t text[10];
     radio.read(&text, sizeof(text));
     //Serial.println(text[0]);
     m1 = map(text[0], 0, 127, 0, 180);
-    m2 = map(text[2], 0, 127, 0, 180);
+    m2 = map(text[1], 0, 127, 0, 180);
+    m3 = map(text[2], 0, 127, 0, 180);
+    m4 = map(text[3], 0, 127, 0, 180);
     //sscanf(text, "%d", &finalThrust);
-    ESC.write(m1);    // Send the signal to the ESC
-    ESC2.write(m2);    // Send the signal to the ESC
-    Serial.println(m1);
-    Serial.println(m2);
+    int motors[4] = {m1, m2, m3, m4};
+    updateMotors(motors, IMUval, 180);
+    ESC.write(motors[0]);    // Send the signal to the ESC
+    ESC2.write(motors[1]);    // Send the signal to the ESC
+    ESC3.write(motors[2]);    // Send the signal to the ESC
+    ESC4.write(motors[3]);    // Send the signal to the ESC
+    
+    //Serial.println(motors[0]);
+    //Serial.println(motors[1]);
   }
-  IMU();
-  delay(10);
   Serial.print("=");
 }

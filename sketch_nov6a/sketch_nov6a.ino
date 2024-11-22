@@ -50,7 +50,7 @@ int holH = 0;
 int holP = 0;
 int holR = 0;
 int mm1 = 0; int mm2 = 0; int mm3 = 0; int mm4 = 0;
-int m1 = 90, m2 = 90, m3 = 90, m4 = 90;  
+int m1 = 180, m2 = 90, m3 = 90, m4 = 90;  
 int fh, fp, fr;
 
 void updateVal(sensors_vec_t orientation){
@@ -102,10 +102,20 @@ void calibrate(void){
   Serial.print(fr); Serial.print(" "); Serial.print(fh); Serial.print(" "); Serial.println(fp);
   delay(10);
 }
-
+int cap(int x){
+  if (x>180){
+    return 180;
+  }
+  else if (x<0){
+    return 0;
+  }
+  else{
+    return x;
+  }
+}
 void loop(void)
 {
-  m1 = 90;
+  m1 = 0;
   m2 = 90;
   m3 = 90; 
   m4 = 90;
@@ -143,6 +153,7 @@ void loop(void)
         mm1 = averager > 0 ? (m1 - map(abs(averager), 0, abs(fr), 0, m1)) : -(m1 - map(abs(averager), 0, abs(fr), 0, m1));
         mm2 = averagep > 0 ? -(m1 - map(abs(averagep),35, fp, 0, m1)) : +(m1 - map(abs(averagep),35, fp, 0, m1));
         Serial.println(averager); Serial.println(mm1);Serial.println(averagep);Serial.println(mm2);
+        
         m1 += mm1;
         m2 += mm1;
         m3 -= mm1;
@@ -152,6 +163,10 @@ void loop(void)
         m3 -= mm2;
         m2 += mm2;
         m4 -= mm2;
+        m1 = cap(m1);
+        m2 = cap(m2);
+        m3 = cap(m3);
+        m4 = cap(m4);
         Serial.print("M1: "); Serial.print(m1); Serial.print(" M2: "); Serial.print(m2); Serial.print(" M3: "); Serial.print(m3); Serial.print(" M4: "); Serial.println(m4); 
      }
     c=1;

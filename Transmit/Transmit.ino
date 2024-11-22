@@ -19,7 +19,7 @@ char text[10] = "";
 int thrust = A1;
 int pan = A2;
 int xAxis = A3;
-int yAxis = A4;
+int yAxis = A6;
 uint8_t potValue[4];
 //Discrete output
 int redpin = 5; //select the pin for the red LED D2
@@ -85,6 +85,7 @@ void updateDisp(int thrott){
 
 void updateHardware(){
   int thr = analogRead(thrust);
+  int xax = analogRead(xAxis);
   thr = (uint8_t) map(thr, 1, 1023, 0, 127);
   updateDisp(thr);
   //Serial.println(thr);

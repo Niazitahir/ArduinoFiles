@@ -22,11 +22,10 @@ float fZm = 0;
 float pitch, pitch_print, roll, roll_print, Heading;
 float fXm_comp, fYm_comp;
 
+float fh = 0, fp = 0, fr = 0;
+float rH = 0, rR = 0, rP = 0;
 
-fh = 0; fp = 0; fr = 0;
-float IMUout[3];
-
-
+#define SIGN(x) (x>0 ? 1: -1)
 void setupIMU(){
   Wire.begin();
   Serial.begin(9600);
@@ -51,7 +50,7 @@ void setupIMU(){
   Wire.write(0x00);             // continuous conversion mode
   Wire.endTransmission();
 }
-void IMU(){
+void IMU(float IMUv[], int size){
   int num = 10;
   float avgr = 0, avgh = 0, avgp = 0;
   float avgR[num] = {0};
@@ -61,7 +60,7 @@ void IMU(){
   float aholP = 0;
   float aholR = 0;
 
-  for (int i = 0; i< 10; i++){
+  for (int i = 0; i< num; i++){
     avgr = avgr - avgR[i];
     avgh = avgh - avgH[i];
     avgp = avgp - avgP[i];
@@ -183,25 +182,26 @@ void IMU(){
     avgr = avgr + avgR[i];
     avgh = avgh + avgH[i];
     avgp = avgp + avgP[i];
-    delay(5);
+    delay(1);
   }
-  aholR = avgr / 10;
-  aholP = avgp / 10;
-  aholH = avgh / 10;
+  aholR = avgr / num;
+  aholP = avgp / num;
+  aholH = avgh / num;
   //Serial.print(fr); Serial.print(" "); Serial.print(fh); Serial.print(" "); Serial.println(fp);
 
 
-  IMUout[0] = aholP;
-  IMUout[1] = aholR;
-  IMUout[2] = aholH;
+  IMUv[0] = aholP;
+  IMUv[1] = aholR;
+  IMUv[2] = aholH;
 
-  Serial.print("Pitch (X): "); Serial.print(IMUout[0]); Serial.print("  ");
-  Serial.print("Roll (Y): "); Serial.print(IMUout[1]); Serial.print("  ");
-  Serial.print("Heading: "); Serial.println(IMUout[2]);
+  // Serial.print("Pitch (X): "); Serial.print(IMUv[0]); Serial.print("  ");
+  // Serial.print("Roll (Y): "); Serial.print(IMUv[1]); Serial.print("  ");
+  // Serial.print("Heading: "); Serial.println(IMUv[2]);
 }
 
-void calibrate(void){
-  int num = 100;
+void calibrate(){
+  float IMUo[3];
+  int num = 50;
   float avgr = 0, avgh = 0, avgp = 0;
   float avgR[num] = {0};
   float avgH[num] = {0};
@@ -209,21 +209,66 @@ void calibrate(void){
   float aholH = 0;
   float aholP = 0;
   float aholR = 0;
-  for (int i = 0; i< 100; i++){
+  for (int i = 0; i< num; i++){
     avgr = avgr - avgR[i];
     avgh = avgh - avgH[i];
     avgp = avgp - avgP[i];
-    IMU();
-    avgH[i] = IMUout[2];
-    avgP[i] = IMUout[0];
-    avgR[i] = IMUout[1];
+    IMU(IMUo, 3);
+    avgH[i] = IMUo[2];
+    avgP[i] = IMUo[0];
+    avgR[i] = IMUo[1];
     avgr = avgr + avgR[i];
     avgh = avgh + avgH[i];
     avgp = avgp + avgP[i];
-    delay(10);
+    // Serial.print(IMUo[1]); Serial.print(" "); Serial.print(IMUo[2]); Serial.print(" "); Serial.println(IMUo[0]);
+    delay(1);
   }
-  fr = avgr / 100;
-  fp = avgp / 100;
-  fh = avgh / 100;
+  fr = avgr / num;
+  fp = avgp / num;
+  fh = avgh / num;
   Serial.print(fr); Serial.print(" "); Serial.print(fh); Serial.print(" "); Serial.println(fp);
+  IMU(IMUo, 3);
+  rR = IMUo[1]; rP = IMUo[0]; rH = IMUo[2];
+}
+
+int cap(int x){
+  if (x> 180){
+    return 180;
+  }
+  if (x<0){
+    return 0;
+  }
+  else{
+    return x;
+  }
+}
+
+void updateMotors(int m[], float IMUv[], uint8_t thr){
+  int mini = 180;
+  for (int i = 0; i<4; i++){
+    if (mini>m[i]){
+      mini = m[i];
+    }
+  }
+  // int mr = IMUv[1] > 0 ? (mini - map(mini, abs(IMUv[1]), abs(fr), 0, mini)) : -(mini - map(mini, abs(IMUv[1]), abs(fr), 0, mini));
+  // int mp = IMUv[0] > 0 ? -(mini - map(abs(IMUv[0]),35, fp, 0, mini)) : +(mini - map(abs(IMUv[0]),35, fp, 0, mini));
+  int mr = SIGN(IMUv[1]) * map(mr, (abs(IMUv[1]) + rR), 75, 0, mini);
+  int mp = SIGN(IMUv[0]) * map(mp, (abs(IMUv[0]) + rP), 75, 0, mini);
+  m[0] += mr;
+  m[1] -= mr;
+  m[2] += mr;
+  m[3] -= mr;
+
+  m[0] += mp;
+  m[1] += mp;
+  m[2] -= mp;
+  m[3] -= mp;
+
+  m[0] = cap(m[0]);
+  m[1] = cap(m[1]);
+  m[2] = cap(m[2]);
+  m[3] = cap(m[3]);
+  //Serial.print(IMUv[1]); Serial.print(" "); Serial.print(IMUv[2]); Serial.print(" "); Serial.println(IMUv[0]);
+  //Serial.print((IMUv[1])); Serial.print(":"); Serial.println(mr); Serial.print((IMUv[0])); Serial.print(":");Serial.println(mp);
+  Serial.print(m[0]); Serial.print(":"); Serial.print(m[1]); Serial.print(":");Serial.print(m[2]); Serial.print(":"); Serial.println(m[3]);
 }
